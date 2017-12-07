@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, Image, TouchableHighlight } from 'react-native';
+import { View, Image, TouchableOpacity } from 'react-native';
 import Injector from 'react-native-injectable-component';
 
 export default function Brick (props) {
@@ -45,12 +45,13 @@ export function _getImageTag (props, gutter = 0) {
 // _getTouchableUnit :: Image, Number -> TouchableTag
 export function _getTouchableUnit (image, gutter = 0) {
   return (
-      <TouchableHighlight
+      <TouchableOpacity
          key={image.uri}
+         activeOpacity={0.8}
          onPress={() => image.onPress(image.data)}>
          <View>
             { _getImageTag(image, gutter) }
          </View>
-      </TouchableHighlight>
+      </TouchableOpacity>
   );
 }
