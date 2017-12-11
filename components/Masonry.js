@@ -1,4 +1,4 @@
-import { View, ListView, Image, Text, Dimensions } from 'react-native';
+import { View, FlatList, Image, Text, Dimensions } from 'react-native';
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import Task from 'data.task';
@@ -40,15 +40,16 @@ export default class Masonry extends Component {
 
   constructor(props) {
     super(props);
-    // Assuming users don't want duplicated images, if this is not the case we can always change the diff check
-    this.ds = new ListView.DataSource({ rowHasChanged: (r1, r2) => !containMatchingUris(r1, r2) });
+
     this.state = {
-      dataSource: this.ds.cloneWithRows([]),
+      dataSource: [],
       dimensions: {},
       initialOrientation: true,
       _sortedData: [],
       _resolvedData: []
     };
+
+    this.offset = 0
     // Assuming that rotation is binary (vertical|landscape)
     Dimensions.addEventListener('change', (window) => this.setState(state => ({ initialOrientation: !state.initialOrientation })))
   }
@@ -71,7 +72,7 @@ export default class Masonry extends Component {
           .reduce((sortDataAcc, resolvedBrick) => _insertIntoColumn(resolvedBrick, sortDataAcc, this.props.sorted), []);
 
         this.setState({
-          dataSource: this.state.dataSource.cloneWithRows(resortedData)
+          dataSource: resortedData
         });
       }
     } else {
@@ -100,7 +101,7 @@ export default class Masonry extends Component {
             const sortedData = _insertIntoColumn(resolvedBrick, state._sortedData, this.props.sorted);
 
             return {
-              dataSource: state.dataSource.cloneWithRows(sortedData),
+              dataSource: sortedData,
               _sortedData: sortedData,
               _resolvedData: [...state._resolvedData, resolvedBrick]
             };
@@ -120,25 +121,42 @@ export default class Masonry extends Component {
     });
   }
 
+  isCloseToBottom({layoutMeasurement, contentOffset, contentSize}) {
+    if (contentOffset.y > this.offset) {
+      this.offset = contentOffset.y;
+      return layoutMeasurement.height + contentOffset.y >= contentSize.height;
+    } else {
+      this.offset = contentOffset.y;
+      return false;
+    }
+  }
+
   render() {
     return (
-    <View style={{flex: 1}} onLayout={(event) => this._setParentDimensions(event)}>
-       <ListView
-         contentContainerStyle={styles.masonry__container}
-         dataSource={this.state.dataSource}
-         enableEmptySections
-         renderRow={(data, sectionId, rowID) =>
-           <Column
-             data={data}
-             columns={this.props.columns}
-             parentDimensions={this.state.dimensions}
-             imageContainerStyle={this.props.imageContainerStyle}
-             customImageComponent={this.props.customImageComponent}
-             customImageProps={this.props.customImageProps}
-             spacing={this.props.spacing}
-             key={`RN-MASONRY-COLUMN-${rowID}`}/> }
-       />
-    </View>
+      <View style={{flex: 1}} onLayout={(event) => this._setParentDimensions(event)}>
+        <FlatList
+          contentContainerStyle={styles.masonry__container}
+          data={this.state.dataSource}
+          keyExtractor={(item, index) => (`RN-MASONRY-COLUMN-${index}`)}
+          onScroll={({nativeEvent}) => {
+            if (this.isCloseToBottom(nativeEvent)) {
+              this.props.onScrollToEnd && this.props.onScrollToEnd()
+            }
+          }}
+          scrollEventThrottle={500}
+          renderItem={({item, index}) =>
+            <Column
+              data={item}
+              columns={this.props.columns}
+              parentDimensions={this.state.dimensions}
+              imageContainerStyle={this.props.imageContainerStyle}
+              customImageComponent={this.props.customImageComponent}
+              customImageProps={this.props.customImageProps}
+              spacing={this.props.spacing}
+            />
+          }
+        />
+      </View>
     )
   }
 };
